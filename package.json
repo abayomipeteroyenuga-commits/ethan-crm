@@ -1,0 +1,13 @@
+{
+  "name": "ethan-crm",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "build": "vite build" },
+  "dependencies": {
+    "appwrite": "18.0.0",
+    "node-appwrite": "30.0.1"
+  },
+  "devDependencies": { "vite": "6.4.5" }
+}
