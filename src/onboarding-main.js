@@ -152,6 +152,7 @@ async function createBusiness(ctx, body, log) {
     await teams.createMembership({
       teamId,
       userId: ctx.userId,
+      email: ctx.user.email,
       roles: ['owner'],
       name: ctx.user.name || businessName,
     });
