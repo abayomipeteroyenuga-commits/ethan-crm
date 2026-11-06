@@ -34,6 +34,28 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const initials=v=>String(v||'E').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
 const date=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?String(v):new Intl.DateTimeFormat('en-NG',{dateStyle:'medium'}).format(d)};
 const dateTime=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?String(v):new Intl.DateTimeFormat('en-NG',{dateStyle:'medium',timeStyle:'short'}).format(d)};
+
+function readAuthCredentials(form){
+ const emailInput=form.querySelector('input[name="email"]');
+ const passwordInput=form.querySelector('input[name="password"]');
+ const email=String(emailInput?.value??'').trim().toLowerCase();
+ const password=String(passwordInput?.value??'');
+ if(!email)throw new Error('Please enter your email address.');
+ if(emailInput&&!emailInput.checkValidity())throw new Error('Please enter a valid email address.');
+ if(!password)throw new Error('Please enter your password.');
+ return {email,password};
+}
+async function createEmailPasswordSessionCompat(email,password){
+ if(!email)throw new Error('Please enter your email address.');
+ if(!password)throw new Error('Please enter your password.');
+ // The positional overload is supported by Appwrite Web SDK 18 and earlier SDKs.
+ return account.createEmailPasswordSession(email,password);
+}
+async function createEmailPasswordAccountCompat(email,password,name){
+ if(!email)throw new Error('Please enter your email address.');
+ if(!password)throw new Error('Please enter your password.');
+ return account.create(ID.unique(),email,password,name);
+}
 const relative=v=>{if(!v)return 'No due date';const d=new Date(v),days=Math.ceil((d-Date.now())/86400000);if(isNaN(d))return 'No due date';if(days<0)return `${Math.abs(days)}d overdue`;if(days===0)return 'Due today';if(days===1)return 'Due tomorrow';return `Due ${date(v)}`};
 const prettyStatus=s=>String(s||'active').replaceAll('-',' ');
 
@@ -85,7 +107,7 @@ async function completeTask(id){const task=(state.data.crm_tasks||[]).find(t=>t.
 async function moveDeal(id,stageId){const deal=(state.data.crm_deals||[]).find(d=>d.$id===id);if(!deal)return;const stage=state.stages.find(s=>s.$id===stageId);await crm('update_record',{tableId:'crm_deals',rowId:id,data:{stage_id:stageId,probability:stage?.probability??deal.probability,status:stage?.is_won?'won':stage?.is_lost?'lost':'open'}});await refreshWorkspace();toast('Deal moved to '+(stage?.name||'new stage'))}
 function exportCsv(){const page=state.active,c=config[page];if(!c)return;const rows=state.data[c.table]||[];if(!rows.length){toast('There are no records to export');return}const keys=c.fields.map(f=>f[0]);const csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replaceAll('"','""')+'"').join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`ethan-crm-${page}.csv`;a.click();URL.revokeObjectURL(a.href)}
 
-app.addEventListener('submit',async e=>{e.preventDefault();const form=e.target;try{if(form.id==='auth-form'){const fd=new FormData(form),email=String(fd.get('email')).trim().toLowerCase(),password=String(fd.get('password')),name=String(fd.get('name')||'').trim();if(state.register){if(name.length<2)throw new Error('Enter your full name.');await account.create({userId:ID.unique(),email,password,name});await account.createEmailPasswordSession({email,password});}else await account.createEmailPasswordSession({email,password});state.user=await account.get();notice();render();await loadBusiness();}else if(form.id==='workspace-form'){const fd=new FormData(form);await onboard('/businesses','POST',{businessName:fd.get('businessName'),industry:fd.get('industry'),phone:fd.get('phone'),currency:fd.get('currency'),timezone:'Africa/Lagos'});await loadBusiness();}else if(form.id==='record-form'){const b=form.querySelector('button[type="submit"]');b.disabled=true;b.textContent='Saving…';await saveRecord(form);} }catch(err){state.error=err.message||'Something went wrong.';render()}});
+app.addEventListener('submit',async e=>{e.preventDefault();const form=e.target;try{if(form.id==='auth-form'){const {email,password}=readAuthCredentials(form);const name=String(new FormData(form).get('name')??'').trim();if(state.register){if(name.length<2)throw new Error('Enter your full name.');await createEmailPasswordAccountCompat(email,password,name);}await createEmailPasswordSessionCompat(email,password);state.user=await account.get();notice();render();await loadBusiness();}else if(form.id==='workspace-form'){const fd=new FormData(form);await onboard('/businesses','POST',{businessName:fd.get('businessName'),industry:fd.get('industry'),phone:fd.get('phone'),currency:fd.get('currency'),timezone:'Africa/Lagos'});await loadBusiness();}else if(form.id==='record-form'){const b=form.querySelector('button[type="submit"]');b.disabled=true;b.textContent='Saving…';await saveRecord(form);} }catch(err){state.error=err.message||'Something went wrong.';render()}});
 app.addEventListener('click',async e=>{const btn=e.target.closest('[data-action]');if(!btn)return;const action=btn.dataset.action;try{if(action==='toggle-register'){state.register=!state.register;notice();render()}if(action==='toggle-password'){const input=document.querySelector('#auth-password');input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Show':'Hide'}if(action==='forgot'){e.preventDefault();const email=prompt('Enter your account email address:');if(email){await account.createRecovery({email,url:location.origin});toast('Password reset email requested')}}if(action==='navigate'){state.active=btn.dataset.value;state.search='';document.querySelector('#sidebar')?.classList.remove('open');notice();render()}if(action==='new')openModal(btn.dataset.value);if(action==='close-modal'){if(e.target===btn||btn.classList.contains('modal-close'))document.querySelector('#modal-root').innerHTML=''}if(action==='edit'){const c=config[btn.dataset.page],row=(state.data[c.table]||[]).find(x=>x.$id===btn.dataset.id);openModal(btn.dataset.page,row)}if(action==='delete')await deleteRecord(btn.dataset.page,btn.dataset.id);if(action==='complete-task')await completeTask(btn.dataset.id);if(action==='menu')document.querySelector('#sidebar')?.classList.toggle('open');if(action==='logout')await signOut();if(action==='install'&&state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;render()} }catch(err){state.error=err.message;render()}});
 app.addEventListener('change',async e=>{const t=e.target;if(t.id==='workspace-select'){const chosen=state.businesses.find(b=>b.id===t.value);if(chosen){state.business=chosen;notice();await refreshWorkspace()}}if(t.matches('[data-action="move-deal"]')){try{await moveDeal(t.dataset.id,t.value)}catch(err){state.error=err.message;render()}}});
 app.addEventListener('input',e=>{if(e.target.id==='global-search'||e.target.id==='page-search'){state.search=e.target.value;const pos=e.target.selectionStart;render();const next=document.querySelector(e.target.id==='global-search'?'#global-search':'#page-search');if(next){next.focus();next.setSelectionRange(pos,pos)}}});
