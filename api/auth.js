@@ -38,10 +38,12 @@ function setCookie(res, session) {
 
 function sameOrigin(req) {
   const origin = req.headers?.origin;
-  const host = req.headers?.['x-forwarded-host'] || req.headers?.host;
-  if (!origin || !host) return false;
+  const hosts = [req.headers?.['x-forwarded-host'], req.headers?.host]
+    .filter(Boolean)
+    .map(value => String(value).split(',')[0].trim().toLowerCase());
+  if (!origin || !hosts.length) return false;
   try {
-    return new URL(origin).host.toLowerCase() === String(host).split(',')[0].trim().toLowerCase();
+    return hosts.includes(new URL(origin).host.toLowerCase());
   } catch {
     return false;
   }
