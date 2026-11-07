@@ -77,10 +77,9 @@ function publicClient() {
 async function startSession(email, password, res) {
   const session = await new Account(publicClient()).createEmailPasswordSession({ email, password });
   if (!session?.secret) throw new Error('Appwrite did not return a session token.');
-  setCookie(res, session);
-
   const sessionClient = publicClient().setSession(session.secret);
   const user = await new Account(sessionClient).get();
+  setCookie(res, session);
   return publicUser(user);
 }
 
@@ -194,7 +193,8 @@ export default async function handler(req, res) {
       type: error?.type,
       message: error?.message,
     });
-    return res.status(Number(error?.code) >= 400 && Number(error?.code) < 600 ? Number(error.code) : 400)
-      .json({ success: false, message: userMessage(error, action) });
+    const errorCode = Number(error?.code);
+    const status = Number.isFinite(errorCode) && errorCode >= 400 && errorCode < 600 ? errorCode : 500;
+    return res.status(status).json({ success: false, message: userMessage(error, action) });
   }
 }
