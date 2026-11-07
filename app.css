@@ -159,3 +159,5 @@
  .pro-contact-modal .modal-body{padding:16px}
  .pro-contact-modal-head h2{font-size:17px}
 }
+
+.otp-phrase{display:grid;gap:7px;padding:13px 14px;margin:-6px 0 18px;border:1px solid #d9e7f7;border-radius:10px;background:#f4f8fd;color:#29496d}.otp-phrase span{font-size:9px;line-height:1.5;letter-spacing:.08em;font-weight:800;color:#527399}.otp-phrase strong{font:800 15px Manrope;letter-spacing:.04em;color:#15345a}
