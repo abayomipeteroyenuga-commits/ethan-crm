@@ -1,4 +1,4 @@
-import {Account,Client,Functions,ID} from 'https://cdn.jsdelivr.net/npm/appwrite@18.0.0/+esm';
+import {Account,Client,Functions,ID} from 'appwrite';
 import './app.css';
 
 const ENDPOINT='https://fra.cloud.appwrite.io/v1';
