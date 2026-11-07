@@ -1,0 +1,11 @@
+{
+  "name":"ETHAN INVOICE",
+  "short_name":"ETHAN INVOICE",
+  "description":"Bill. Track. Get Paid.",
+  "start_url":"/",
+  "scope":"/",
+  "display":"standalone",
+  "background_color":"#f4f7fb",
+  "theme_color":"#10264a",
+  "icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
