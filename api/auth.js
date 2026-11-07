@@ -195,7 +195,7 @@ export default async function handler(req, res) {
       if (name.length < 2 || name.length > 128) {
         return res.status(400).json({ success: false, message: 'Enter your full name (2–128 characters).' });
       }
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
         return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
       }
       if (password.length < 8 || password.length > 256) {
@@ -218,7 +218,7 @@ export default async function handler(req, res) {
     if (action === 'login') {
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password ?? '');
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || !password) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password) {
         return res.status(400).json({ success: false, message: 'Enter a valid email address and password.' });
       }
       const result = await startPasswordThenOtp(email, password, res);
@@ -231,7 +231,7 @@ export default async function handler(req, res) {
         return res.status(401).json({ success: false, message: 'Your verification request has expired. Sign in again to receive a new code.' });
       }
       const otp = String(body.otp || '').trim();
-      if (!/^\\d{6}$/.test(otp)) {
+      if (!/^\d{6}$/.test(otp)) {
         return res.status(400).json({ success: false, message: 'Enter the six-digit code sent to your email.' });
       }
       const session = await new Account(adminClient()).createSession({
@@ -295,7 +295,7 @@ export default async function handler(req, res) {
 
     if (action === 'recovery') {
       const email = String(body.email || '').trim().toLowerCase();
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
       }
       await new Account(publicClient()).createRecovery({
