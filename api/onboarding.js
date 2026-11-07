@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   }
 
   const jwt = String(header(req, 'authorization') || '').replace(/^Bearer\s+/i, '').trim();
-  const session = cookie(req, 'ethan_crm_session');
+  const session = cookie(req, 'ethan_crm_session_v2');
   if (!jwt && !session) return res.status(401).json({ success: false, error: 'Sign in to continue.' });
   if (session && !sameOrigin(req)) return res.status(403).json({ success: false, error: 'This request origin is not allowed.' });
   if (!process.env.APPWRITE_API_KEY) {
