@@ -49,12 +49,15 @@ function clientForRequest(req) {
 
 async function authenticatedContext(req) {
   const jwt = req.headers?.['x-appwrite-user-jwt'];
-  if (!jwt) return { error: 'Sign in to continue.' };
+  const session = req.headers?.['x-appwrite-user-session'];
+  if (!jwt && !session) return { error: 'Sign in to continue.' };
 
   const client = clientForRequest(req);
   const endpoint = process.env.APPWRITE_ENDPOINT || process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
   const projectId = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_FUNCTION_PROJECT_ID || 'ethan-business';
-  const userClient = new Client().setEndpoint(endpoint).setProject(projectId).setJWT(jwt);
+  const userClient = new Client().setEndpoint(endpoint).setProject(projectId);
+  if (session) userClient.setSession(session);
+  else userClient.setJWT(jwt);
   const account = new Account(userClient);
   const user = await account.get();
   if (!user || user.status !== true) return { error: 'Your account is not available.' };
