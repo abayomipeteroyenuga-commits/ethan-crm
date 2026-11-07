@@ -60,6 +60,7 @@ function setPendingCookie(res, pending, token) {
   }));
   res.setHeader('Set-Cookie', [
     `${PENDING_COOKIE_NAME}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`,
+    `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
     `${LEGACY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
   ]);
   return maxAge;
