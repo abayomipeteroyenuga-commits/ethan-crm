@@ -48,13 +48,12 @@ function readAuthCredentials(form){
 async function createEmailPasswordSessionCompat(email,password){
  if(!email)throw new Error('Please enter your email address.');
  if(!password)throw new Error('Please enter your password.');
- // The positional overload is supported by Appwrite Web SDK 18 and earlier SDKs.
- return account.createEmailPasswordSession(email,password);
+ return account.createEmailPasswordSession({email,password});
 }
 async function createEmailPasswordAccountCompat(email,password,name){
  if(!email)throw new Error('Please enter your email address.');
  if(!password)throw new Error('Please enter your password.');
- return account.create(ID.unique(),email,password,name);
+ return account.create({userId:ID.unique(),email,password,name});
 }
 const relative=v=>{if(!v)return 'No due date';const d=new Date(v),days=Math.ceil((d-Date.now())/86400000);if(isNaN(d))return 'No due date';if(days<0)return `${Math.abs(days)}d overdue`;if(days===0)return 'Due today';if(days===1)return 'Due tomorrow';return `Due ${date(v)}`};
 const prettyStatus=s=>String(s||'active').replaceAll('-',' ');
