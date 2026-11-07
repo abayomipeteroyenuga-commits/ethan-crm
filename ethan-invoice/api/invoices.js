@@ -1,4 +1,4 @@
-import { Account, Client, Query, TablesDB, Teams } from 'node-appwrite';
+import { Account, Client, Functions, TablesDB } from 'node-appwrite';
 import { Pool } from 'pg';
 import { attachDatabasePool } from '@vercel/functions';
 import { randomBytes } from 'node:crypto';
@@ -76,40 +76,37 @@ async function authenticatedWorkspace(req, teamId) {
 
   const userClient = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setJWT(auth);
   const account = new Account(userClient);
-  const teams = new Teams(userClient);
+  const functions = new Functions(userClient);
   const tables = new TablesDB(userClient);
   const user = await account.get();
 
   if (!teamId || String(teamId).length > 36) fail('A valid business workspace is required.');
-  let business;
+
+  // Ask the existing, server-authorized Ethan Business API to verify the caller's
+  // active team membership and exact business roles. This API uses its own scoped
+  // Appwrite execution key; no privileged Appwrite key is exposed to Vercel.
+  const execution = await functions.createExecution(
+    'ethan-business-api',
+    JSON.stringify({ action: 'list_my_businesses' }),
+    false
+  );
+  if (Number(execution.responseStatusCode || 500) >= 400) {
+    fail('Your Ethan business membership could not be verified. Please sign in again.', 403);
+  }
+  let membershipResponse = {};
   try {
-    // The business row is protected by Appwrite team read permissions. This check
-    // prevents a caller from selecting another tenant by changing teamId.
-    business = await tables.getRow({
-      databaseId: DATABASE_ID,
-      tableId: 'businesses',
-      rowId: String(teamId)
-    });
+    membershipResponse = JSON.parse(execution.responseBody || '{}');
   } catch {
+    fail('The business membership service returned an invalid response.', 502);
+  }
+  const business = (membershipResponse.businesses || []).find(
+    item => String(item.teamId || item.$id) === String(teamId)
+  );
+  if (!membershipResponse.ok || !business || business.status !== 'active') {
     fail('You are not an active member of this business.', 403);
   }
-  if (business.$id !== String(teamId) || business.status !== 'active') {
-    fail('This business workspace is not available.', 403);
-  }
-
-  let roles = [];
-  try {
-    const membershipPage = await teams.listMemberships({
-      teamId: String(teamId),
-      queries: [Query.equal('userId', user.$id), Query.limit(5)]
-    });
-    const membership = (membershipPage.memberships || []).find(m => m.userId === user.$id && m.joined);
-    if (membership) roles = membership.roles || [];
-  } catch {
-    // The protected business row above still verifies tenant membership.
-  }
-  if (!roles.length && business.owner_user_id === user.$id) roles = ['owner'];
-  if (!roles.length) fail('Your active business role could not be verified. Ask a business owner to check your membership.', 403);
+  const roles = Array.isArray(business.roles) ? business.roles : [];
+  if (!roles.length) fail('Your active business role could not be verified.', 403);
 
   return { user, userClient, tables, business, roles, teamId: String(teamId) };
 }
