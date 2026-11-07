@@ -245,7 +245,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         user: publicUser(user),
-        message: 'Email verification complete. You are signed in.',
+        message: 'Code verified. You are signed in.',
       });
     }
 
