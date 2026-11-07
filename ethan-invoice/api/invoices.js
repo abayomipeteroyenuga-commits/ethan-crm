@@ -268,6 +268,15 @@ async function recordPayment(ctx, body) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Vary', 'Authorization');
+  if (req.method === 'GET') {
+    try {
+      const check = await getPool().query('SELECT current_database() AS database_name, 1 AS healthy');
+      return json(res, 200, { ok: true, service: 'ETHAN INVOICE API', database: check.rows[0].database_name });
+    } catch (error) {
+      console.error('ETHAN INVOICE health check failed:', error);
+      return json(res, 503, { ok: false, message: 'Invoice database is unavailable.' });
+    }
+  }
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(204).end();
