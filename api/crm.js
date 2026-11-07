@@ -18,12 +18,13 @@ function cookie(req, name) {
 
 function sameOrigin(req) {
   const origin = header(req, 'origin');
-  const host = header(req, 'x-forwarded-host') || header(req, 'host');
-  if (!origin || !host) return false;
-  try { return new URL(origin).host.toLowerCase() === String(host).split(',')[0].trim().toLowerCase(); }
+  const hosts = [header(req, 'x-forwarded-host'), header(req, 'host')]
+    .filter(Boolean)
+    .map(value => String(value).split(',')[0].trim().toLowerCase());
+  if (!origin || !hosts.length) return false;
+  try { return hosts.includes(new URL(origin).host.toLowerCase()); }
   catch { return false; }
 }
-
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS');
