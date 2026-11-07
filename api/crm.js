@@ -5,6 +5,25 @@ function header(req, name) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function cookie(req, name) {
+  const raw = String(header(req, 'cookie') || '');
+  for (const item of raw.split(';')) {
+    const index = item.indexOf('=');
+    if (index < 0 || item.slice(0, index).trim() !== name) continue;
+    try { return decodeURIComponent(item.slice(index + 1).trim()); }
+    catch { return item.slice(index + 1).trim(); }
+  }
+  return '';
+}
+
+function sameOrigin(req) {
+  const origin = header(req, 'origin');
+  const host = header(req, 'x-forwarded-host') || header(req, 'host');
+  if (!origin || !host) return false;
+  try { return new URL(origin).host.toLowerCase() === String(host).split(',')[0].trim().toLowerCase(); }
+  catch { return false; }
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS');
@@ -15,7 +34,9 @@ export default async function handler(req, res) {
   }
 
   const jwt = String(header(req, 'authorization') || '').replace(/^Bearer\s+/i, '').trim();
-  if (!jwt) return res.status(401).json({ ok: false, message: 'Please sign in to continue.' });
+  const session = cookie(req, 'ethan_crm_session');
+  if (!jwt && !session) return res.status(401).json({ ok: false, message: 'Please sign in to continue.' });
+  if (session && !sameOrigin(req)) return res.status(403).json({ ok: false, message: 'This request origin is not allowed.' });
   if (!process.env.APPWRITE_API_KEY) {
     return res.status(500).json({ ok: false, message: 'CRM service configuration is incomplete.' });
   }
@@ -23,6 +44,7 @@ export default async function handler(req, res) {
   const mockReq = {
     headers: {
       'x-appwrite-user-jwt': jwt,
+      'x-appwrite-user-session': session,
       'x-appwrite-key': process.env.APPWRITE_API_KEY,
     },
     bodyJson: req.body && typeof req.body === 'object' ? req.body : {},
