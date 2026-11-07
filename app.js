@@ -34,10 +34,10 @@ const date=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?String(v):
 const dateTime=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?String(v):new Intl.DateTimeFormat('en-NG',{dateStyle:'medium',timeStyle:'short'}).format(d)};
 
 function readAuthCredentials(form){
+ const values=new FormData(form);
  const emailInput=form.querySelector('input[name="email"]');
- const passwordInput=form.querySelector('input[name="password"]');
- const email=String(emailInput?.value??'').trim().toLowerCase();
- const password=String(passwordInput?.value??'');
+ const email=String(values.get('email')??'').trim().toLowerCase();
+ const password=String(values.get('password')??'');
  if(!email)throw new Error('Please enter your email address.');
  if(emailInput&&!emailInput.checkValidity())throw new Error('Please enter a valid email address.');
  if(!password)throw new Error('Please enter your password.');
