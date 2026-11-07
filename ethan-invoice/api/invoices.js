@@ -85,11 +85,11 @@ async function authenticatedWorkspace(req, teamId) {
   // Ask the existing, server-authorized Ethan Business API to verify the caller's
   // active team membership and exact business roles. This API uses its own scoped
   // Appwrite execution key; no privileged Appwrite key is exposed to Vercel.
-  const execution = await functions.createExecution(
-    'ethan-business-api',
-    JSON.stringify({ action: 'list_my_businesses' }),
-    false
-  );
+  const execution = await functions.createExecution({
+    functionId: 'ethan-business-api',
+    body: JSON.stringify({ action: 'list_my_businesses' }),
+    async: false
+  });
   if (Number(execution.responseStatusCode || 500) >= 400) {
     fail('Your Ethan business membership could not be verified. Please sign in again.', 403);
   }
