@@ -102,11 +102,11 @@ function userMessage(error, action) {
   if (type.includes('user_already_exists') || code === 409) {
     return 'An account with this email already exists. Switch to Sign in.';
   }
-  if (type.includes('user_invalid_credentials') || type.includes('user_not_found') || code === 401) {
-    return 'The email address or password is incorrect.';
-  }
   if (type.includes('user_invalid_token') || type.includes('token_invalid') || type.includes('user_token_expired')) {
     return 'That code is incorrect or has expired. Request a new code and try again.';
+  }
+  if (type.includes('user_invalid_credentials') || type.includes('user_not_found') || code === 401) {
+    return 'The email address or password is incorrect.';
   }
   if (type.includes('password') || type.includes('user_password')) {
     return 'The password must contain at least 8 characters.';
