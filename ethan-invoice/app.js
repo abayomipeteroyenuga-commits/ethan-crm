@@ -37,7 +37,22 @@ async function execFunction(id,body={},path='/',method='POST'){
  return parseExecution(ex);
 }
 async function onboard(path='/businesses',method='GET',body={}){return execFunction(ONBOARD,body,path,method)}
-async function api(action,extra={}){if(!state.business?.teamId)throw new Error('Select a business workspace.');return execFunction(API,{action,teamId:state.business.teamId,...extra})}
+async function api(action,extra={}){
+ if(!state.business?.teamId)throw new Error('Select a business workspace.');
+ // Customer creation and the shared catalogue remain in ETHAN BUSINESS.
+ // Invoice headers, line items and payments are stored in Neon.
+ const sharedAppwrite = action==='create_record' || ['customers','products'].includes(String(extra.tableId||''));
+ if(sharedAppwrite)return execFunction(API,{action,teamId:state.business.teamId,...extra});
+ const jwt=await account.createJWT();
+ const response=await fetch('/api/invoices',{
+  method:'POST',
+  headers:{'content-type':'application/json','authorization':`Bearer ${jwt.jwt}`},
+  body:JSON.stringify({action,teamId:state.business.teamId,...extra})
+ });
+ let result={};try{result=await response.json()}catch{result={message:'The invoice service returned an unreadable response.'}}
+ if(!response.ok||result.ok===false)throw new Error(result.message||`Invoice request failed (${response.status}).`);
+ return result;
+}
 async function loadBusinessList(){const result=await onboard('/businesses','GET',{});state.businesses=result.businesses||[];if(!state.business&&state.businesses.length)state.business=state.businesses[0]}
 async function loadData(){
  if(!state.business)return;
