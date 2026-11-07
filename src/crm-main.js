@@ -184,13 +184,16 @@ async function main({ req, res, log, error: logError }) {
   const endpoint = process.env.APPWRITE_ENDPOINT || process.env.APPWRITE_FUNCTION_API_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
   const projectId = process.env.APPWRITE_PROJECT_ID || process.env.APPWRITE_FUNCTION_PROJECT_ID || 'ethan-business';
   const userJwt = req.headers?.['x-appwrite-user-jwt'];
+  const userSession = req.headers?.['x-appwrite-user-session'];
   const apiKey = req.headers?.['x-appwrite-key'];
 
-  if (!userJwt || !apiKey) {
+  if ((!userJwt && !userSession) || !apiKey) {
     return response(401, { ok: false, message: 'Please sign in to continue.' }, res);
   }
 
-  const userClient = new Client().setEndpoint(endpoint).setProject(projectId).setJWT(userJwt);
+  const userClient = new Client().setEndpoint(endpoint).setProject(projectId);
+  if (userSession) userClient.setSession(userSession);
+  else userClient.setJWT(userJwt);
   const serviceClient = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   const account = new Account(userClient);
   const teams = new Teams(serviceClient);
