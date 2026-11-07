@@ -76,8 +76,18 @@ function publicClient() {
   return new Client().setEndpoint(ENDPOINT).setProject(PROJECT);
 }
 
+// Appwrite only returns the server-side session secret when the session is
+// created with the server SDK's API-key client (the documented SSR pattern).
+// A project client without an API key can authenticate, but its `secret` is
+// empty, so the browser never receives a usable HttpOnly session cookie.
+function adminClient() {
+  const apiKey = process.env.APPWRITE_API_KEY;
+  if (!apiKey) throw new Error('Authentication service is not configured: APPWRITE_API_KEY is missing.');
+  return new Client().setEndpoint(ENDPOINT).setProject(PROJECT).setKey(apiKey);
+}
+
 async function startSession(email, password, res) {
-  const session = await new Account(publicClient()).createEmailPasswordSession({ email, password });
+  const session = await new Account(adminClient()).createEmailPasswordSession({ email, password });
   if (!session?.secret) throw new Error('Appwrite did not return a session token.');
   const sessionClient = publicClient().setSession(session.secret);
   const user = await new Account(sessionClient).get();
