@@ -149,7 +149,7 @@ async function resendEmailOtp(){
 async function completeMagicLinkIfPresent(){
  const params=new URLSearchParams(location.search),secret=params.get('secret'),userId=params.get('userId'),isRecovery=params.get('recovery')==='1';
  if(!secret||!userId)return false;
- const clean=new URL(location.href);clean.searchParams.delete('secret');clean.searchParams.delete('userId');clean.searchParams.delete('recovery');
+ const clean=new URL(location.href);clean.searchParams.delete('secret');clean.searchParams.delete('userId');clean.searchParams.delete('recovery');clean.searchParams.delete('email');
  history.replaceState({},document.title,clean.pathname+clean.search+clean.hash);
  if(isRecovery){state.authRecovery={userId,secret,email:params.get('email')||''};state.authEmail=state.authRecovery.email;state.authMode='password';state.authProgress='';return true;}
  state.authProgress='Verifying your email sign-in link…';
