@@ -5,7 +5,9 @@ const PROJECT = process.env.APPWRITE_PROJECT_ID || 'ethan-business';
 const COOKIE_NAME = 'ethan_crm_session_v2';
 const LEGACY_COOKIE_NAME = 'ethan_crm_session';
 const PENDING_COOKIE_NAME = 'ethan_crm_otp';
+const RECOVERY_COOKIE_NAME = 'ethan_crm_recovery';
 const OTP_TTL_SECONDS = 15 * 60;
+const RECOVERY_TTL_SECONDS = 15 * 60;
 
 function parseBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -31,6 +33,7 @@ function clearAuthCookies(res) {
     `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
     `${LEGACY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
     `${PENDING_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
+    `${RECOVERY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
   ]);
 }
 
@@ -43,6 +46,7 @@ function setSessionCookie(res, session) {
     `${COOKIE_NAME}=${encodeURIComponent(session.secret)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`,
     `${LEGACY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
     `${PENDING_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
+    `${RECOVERY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
   ]);
 }
 
@@ -62,6 +66,7 @@ function setPendingCookie(res, pending, token) {
     `${PENDING_COOKIE_NAME}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`,
     `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
     `${LEGACY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
+    `${RECOVERY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
   ]);
   return maxAge;
 }
@@ -77,6 +82,47 @@ function readPendingCookie(req) {
   } catch {
     return null;
   }
+}
+
+
+function setRecoveryCookie(res, pending, token) {
+  const tokenExpiry = new Date(token?.expire || 0).getTime();
+  const remaining = Number.isFinite(tokenExpiry) && tokenExpiry > Date.now()
+    ? Math.floor((tokenExpiry - Date.now()) / 1000)
+    : RECOVERY_TTL_SECONDS;
+  const maxAge = Math.max(60, Math.min(RECOVERY_TTL_SECONDS, remaining));
+  const value = encodeURIComponent(JSON.stringify({
+    userId: String(pending.userId),
+    email: String(pending.email).toLowerCase(),
+    phrase: String(token?.phrase || ''),
+    issuedAt: Date.now(),
+  }));
+  res.setHeader('Set-Cookie', [
+    `${RECOVERY_COOKIE_NAME}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`,
+    `${PENDING_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
+    `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
+    `${LEGACY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
+  ]);
+  return maxAge;
+}
+
+function readPendingRecoveryCookie(req) {
+  const raw = readCookie(req, RECOVERY_COOKIE_NAME);
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    if (!value?.userId || !value?.email || !Number.isFinite(value?.issuedAt)) return null;
+    if (Date.now() - value.issuedAt > RECOVERY_TTL_SECONDS * 1000) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function clearRecoveryCookie(res) {
+  res.setHeader('Set-Cookie', [
+    `${RECOVERY_COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`,
+  ]);
 }
 
 function sameOrigin(req) {
@@ -102,7 +148,7 @@ function userMessage(error, action) {
   if (type.includes('user_already_exists') || code === 409) {
     return 'An account with this email already exists. Switch to Sign in.';
   }
-  if (type.includes('user_invalid_token') || type.includes('token_invalid') || type.includes('user_token_expired')) {
+  if (type.includes('user_invalid_token') || type.includes('token_invalid') || type.includes('user_token_expired') || (action === 'completeRecovery' && type.includes('user_not_found'))) {
     return 'That code is incorrect or has expired. Request a new code and try again.';
   }
   if (type.includes('user_invalid_credentials') || type.includes('user_not_found') || code === 401) {
@@ -187,6 +233,7 @@ export default async function handler(req, res) {
   const action = String(body.action || '');
   const sessionSecret = readCookie(req, COOKIE_NAME);
   const pending = readPendingCookie(req);
+  const recoveryPending = readPendingRecoveryCookie(req);
 
   try {
     if (action === 'register') {
@@ -296,17 +343,68 @@ export default async function handler(req, res) {
 
     if (action === 'recovery') {
       const email = String(body.email || '').trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
         return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
       }
-      await new Account(publicClient()).createRecovery({
+      const token = await new Account(publicClient()).createRecoveryOTP({
         email,
-        url: 'https://crm.ethandigitalacademy.org',
+        phrase: true,
       });
+      if (!token?.userId) throw new Error('Appwrite did not return a password recovery token.');
+      setRecoveryCookie(res, { userId: token.userId, email }, token);
       return res.status(200).json({
         success: true,
-        message: 'A password reset email has been requested. Open the link from your email to continue.',
+        securityPhrase: token.phrase || '',
+        message: 'If an account exists for this email, a six-digit password reset code is on its way. The code is valid for 15 minutes.',
       });
+    }
+
+    if (action === 'resendRecovery') {
+      if (!recoveryPending) {
+        clearRecoveryCookie(res);
+        return res.status(401).json({ success: false, message: 'Your password reset request has expired. Request a new code.' });
+      }
+      const token = await new Account(publicClient()).createRecoveryOTP({
+        email: recoveryPending.email,
+        phrase: true,
+      });
+      if (!token?.userId) throw new Error('Appwrite did not return a password recovery token.');
+      setRecoveryCookie(res, { userId: token.userId, email: recoveryPending.email }, token);
+      return res.status(200).json({
+        success: true,
+        securityPhrase: token.phrase || '',
+        message: 'A new password reset code has been requested. Use the newest email.',
+      });
+    }
+
+    if (action === 'completeRecovery') {
+      if (!recoveryPending) {
+        clearRecoveryCookie(res);
+        return res.status(401).json({ success: false, message: 'Your password reset request has expired. Request a new code.' });
+      }
+      const otp = String(body.otp || '').trim();
+      const password = String(body.password ?? '');
+      if (!/^\d{6}$/.test(otp)) {
+        return res.status(400).json({ success: false, message: 'Enter the six-digit code from your password reset email.' });
+      }
+      if (password.length < 8 || password.length > 256) {
+        return res.status(400).json({ success: false, message: 'Your new password must be at least 8 characters.' });
+      }
+      await new Account(publicClient()).updateRecoveryOTP({
+        userId: recoveryPending.userId,
+        secret: otp,
+        password,
+      });
+      clearRecoveryCookie(res);
+      return res.status(200).json({
+        success: true,
+        message: 'Your password has been reset. Sign in with your new password.',
+      });
+    }
+
+    if (action === 'cancelRecovery') {
+      clearRecoveryCookie(res);
+      return res.status(200).json({ success: true, message: 'Password reset cancelled.' });
     }
 
     return res.status(400).json({ success: false, message: 'Unknown authentication action.' });
