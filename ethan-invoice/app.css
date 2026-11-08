@@ -20,7 +20,7 @@
 @media print{html,body,#app{background:#fff!important}.sidebar,.topbar,.page-head,.side-stack,.hide-print,.toast{display:none!important}.app-shell{display:block}.main-area{padding:0!important}.content{padding:0!important}.detail-layout{display:block}.invoice-paper{border:0!important;box-shadow:none!important;padding:4mm!important}.panel{border:0!important;box-shadow:none!important}.invoice-paper-head{border-bottom:2px solid #17263d}.invoice-lines td,.invoice-lines th{font-size:10pt}.invoice-meta{font-size:10pt}.invoice-totals{width:280px}.modal-backdrop{display:none!important}@page{size:A4;margin:12mm}}
 
 
-.auth-methods{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
+.auth-methods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 16px}
 .auth-method{border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);padding:11px 12px;font-size:13px;font-weight:800}
 .auth-method.active{background:var(--blue2);border-color:#91b8e8;color:var(--navy)}
 .auth-hint{font-size:12px;line-height:1.6;color:var(--muted);margin:12px 0 0}
