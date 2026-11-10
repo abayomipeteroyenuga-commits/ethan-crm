@@ -198,6 +198,9 @@ async function main({ req, res, log, error: logError }) {
 
   try {
     const user = await account.get();
+    if (String(user.email || '').trim().toLowerCase() !== 'abayomipeteroyenuga@gmail.com') {
+      return response(403, { ok: false, message: 'ETHAN CRM is restricted to the authorised administrator.' }, res);
+    }
     const body = req.bodyJson || {};
     const action = String(body.action || '');
     const teamId = String(body.teamId || '');
