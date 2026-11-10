@@ -79,6 +79,9 @@ async function authenticatedWorkspace(req, teamId) {
   const functions = new Functions(userClient);
   const tables = new TablesDB(userClient);
   const user = await account.get();
+  if (String(user.email || '').trim().toLowerCase() !== 'abayomipeteroyenuga@gmail.com') {
+    fail('ETHAN INVOICE is restricted to the authorised administrator.', 403);
+  }
 
   if (!teamId || String(teamId).length > 36) fail('A valid business workspace is required.');
 
