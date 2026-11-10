@@ -58,6 +58,9 @@ async function authenticatedContext(req) {
   const account = new Account(userClient);
   const user = await account.get();
   if (!user || user.status !== true) return { error: 'Your account is not available.' };
+  if (String(user.email || '').trim().toLowerCase() !== 'abayomipeteroyenuga@gmail.com') {
+    return { error: 'Ethan CRM onboarding is restricted to the authorised administrator.' };
+  }
 
   return {
     client,
